@@ -4,10 +4,12 @@ use std::{
     sync::{Mutex, Arc, mpsc}
 };
 
+#[derive(Debug)]
 pub struct Hunter {
     query: String, // String to search for
     root_path: String, // Directory to start the search at
-    thread_count: u32 // Number of threads spawned
+    thread_count: u32, // Number of threads spawned
+    ignore_case: bool // False by default
 }
 
 impl Hunter {
@@ -17,16 +19,34 @@ impl Hunter {
         let mut config = Self {
             query: String::new(),
             root_path: String::new(),
-            thread_count: 4
+            thread_count: 4,
+            ignore_case: false
         };
 
         let args: Vec<String> = env::args().collect();
-        if args.len() != 3 {
+        if args.len() < 3 {
             return Err("Invalid arguments!".to_string());
         }
-        config.query = String::from(&args[1]);
-        config.root_path = String::from(&args[2]);
 
+        for arg in &args[1..] {
+            match &arg[..] {
+                "--ignore-case" => {
+                    config.ignore_case = true;
+                },
+                _ => {
+                    let arg_as_string = String::from(arg);
+                    if config.query.is_empty() {
+                        config.query = arg_as_string;
+                    } else if config.root_path.is_empty() {
+                        config.root_path = arg_as_string;
+                    } else {
+                        return Err("Invalid arguments!".to_string());
+                    }
+                }
+            }
+        }
+
+        println!("{:?}", config);
         Ok(config)
     }
 
@@ -51,6 +71,7 @@ impl Hunter {
     fn init_threads(&self, root_contents: Vec<PathBuf>) {
         let (sender, receiver) = mpsc::channel();
         
+        let ignore_case = self.ignore_case;
         let queue = Arc::new( Mutex::new(root_contents) );
         for _ in 0..self.thread_count {
             let sender = sender.clone();
@@ -66,8 +87,15 @@ impl Hunter {
                     if let Some(pathbuf) = path_from_queue {
                         if let Some(os_str) = pathbuf.file_name() {
                             if let Some(str) = os_str.to_str() {
-                                if str.contains(&query) {
-                                    print_match(&pathbuf, str, &query);
+                                if ignore_case {
+                                    let filename_lowercase = String::from(str).to_lowercase();
+                                    if filename_lowercase.contains(&query.to_lowercase()) {
+                                        print_match(&pathbuf, str, &query, true);
+                                    }
+                                }
+
+                                else if str.contains(&query) {
+                                    print_match(&pathbuf, str, &query, false);
                                 }
                             }
                         }
@@ -103,16 +131,28 @@ impl Hunter {
 }
 
 /*
-- Finds where the element's name matches the query.
+- Finds where the element's name matches the query (case-sensitive/-insensitive).
 - Prints the element's name with the matching substring highlighted.
 */
-fn print_match(path: &PathBuf, filename: &str, query: &str) {
+fn print_match(path: &PathBuf, filename: &str, query: &str, ignore_case: bool) {
     let mut path = path.clone();
     path.pop();
     if let Some(_) = path.to_str() {
-        let colored_query = format!("\u{001b}[31m{}\u{001b}[0m", query);
-        let filename_highlighted = String::from(filename).replace(query, &colored_query);
-        path.push(filename_highlighted);
+        if ignore_case {
+            let mut filename = String::from(filename);
+            if let Some(index) = filename.to_lowercase().find(String::from(query).to_lowercase().as_str()) {
+                let matching_slice = &filename[index..index+query.len()];
+                filename.replace_range(index..index+query.len(), &format!("\u{001b}[31m{}\u{001b}[0m", matching_slice));
+                
+                path.push(filename);
+            }
+        }
+        else {
+            let colored_query = format!("\u{001b}[31m{}\u{001b}[0m", query);
+            let filename_highlighted = String::from(filename).replace(query, &colored_query);
+            path.push(filename_highlighted);
+        }
+
         println!("{}", path.to_str().unwrap());
     }
 }
