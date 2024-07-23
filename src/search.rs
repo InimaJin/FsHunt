@@ -9,7 +9,8 @@ pub struct Hunter {
     query: String, // String to search for
     root_path: String, // Directory to start the search at
     thread_count: u32, // Number of threads spawned
-    ignore_case: bool // False by default
+    ignore_case: bool, // False by default
+    pub print_help: bool // Whether the help menu should be displayed
 }
 
 impl Hunter {
@@ -20,11 +21,12 @@ impl Hunter {
             query: String::new(),
             root_path: String::new(),
             thread_count: 4,
-            ignore_case: false
+            ignore_case: false,
+            print_help: false
         };
 
         let args: Vec<String> = env::args().collect();
-        if args.len() < 3 {
+        if args.len() < 2 {
             return Err("Invalid arguments!".to_string());
         }
 
@@ -32,6 +34,10 @@ impl Hunter {
             match &arg[..] {
                 "--ignore-case" => {
                     config.ignore_case = true;
+                },
+                "--help" => {
+                    config.print_help = true;
+                    break;
                 },
                 _ => {
                     let arg_as_string = String::from(arg);
@@ -46,7 +52,10 @@ impl Hunter {
             }
         }
 
-        println!("{:?}", config);
+        if !config.print_help && args.len() < 3 {
+            return Err("Invalid arguments!".to_string());
+        }
+
         Ok(config)
     }
 
@@ -155,4 +164,19 @@ fn print_match(path: &PathBuf, filename: &str, query: &str, ignore_case: bool) {
 
         println!("{}", path.to_str().unwrap());
     }
+}
+
+impl Hunter {
+    pub const HELP_MENU: &'static str = r#"==========FS_HUNT==========    
+USAGE:
+    fs_hunt <KEYWORD> <DIRECTORY> [OPTIONS]
+
+
+OPTIONS:
+    --ignore-case       Initiate case-insensitive search
+    --help              Display this menu
+
+
+EXAMPLE:
+    fs_hunt "pdf" /home/my_user/Desktop"#;
 }

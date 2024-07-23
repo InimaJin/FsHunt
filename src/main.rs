@@ -6,7 +6,11 @@ fn main() {
     let hunter: Hunter;
     if let Ok(c) = config_result {
         hunter = c;
-        hunter.start_search();
+        if hunter.print_help {
+            println!("{}", Hunter::HELP_MENU);
+        } else {
+            hunter.start_search();
+        }
     } else if let Err(msg) = config_result {
         eprintln!("{}", msg);
     }    
