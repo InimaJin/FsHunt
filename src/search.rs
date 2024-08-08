@@ -72,22 +72,30 @@ impl Hunter {
     }
 
     /* 
-    - Creates a queue. The queue is a vector holding paths to files/ folders found during the search and
-    it is permanently being updated by the threads until all elements in the root directory (and its children) 
+    - Creates a queue. The queue is a vector holding paths to folders (in the beginning files in the root folder as well) found during the search and
+    it is permanently being updated with new paths from the threads until all elements in the root directory (and its children) 
     have been analyzed.
-    - Spawns threads that edit the queue and analyze the elements in it. 
+    - Spawns threads that analyze the elements in the queue and send paths to newly found folders back to the main thread. 
     */
     fn init_threads(&self, root_contents: Vec<PathBuf>) {
         let (sender, receiver) = mpsc::channel();
         
+        // matches_counters: [number of matching dirs found, number of matching files found]
+        let matches_counters = Arc::new( Mutex::new(vec![0, 0]) );
+
         let ignore_case = self.ignore_case;
         let queue = Arc::new( Mutex::new(root_contents) );
         for _ in 0..self.thread_count {
             let sender = sender.clone();
+            
             let query = String::from(&self.query);
+            
+            let matches_counters = Arc::clone(&matches_counters);
+            let mut element_match = false; // The file/ folder contains the specified query
             let queue = Arc::clone(&queue);
             thread::spawn(move || {
                 loop {
+                    element_match = false;
                     // Path to the element to be analyzed
                     let path_from_queue = {
                         let mut queue = queue.lock().unwrap();
@@ -100,16 +108,22 @@ impl Hunter {
                                     let filename_lowercase = String::from(str).to_lowercase();
                                     if filename_lowercase.contains(&query.to_lowercase()) {
                                         print_match(&pathbuf, str, &query, true);
+                                        element_match = true;
                                     }
                                 }
 
                                 else if str.contains(&query) {
                                     print_match(&pathbuf, str, &query, false);
+                                    element_match = true;
                                 }
                             }
                         }
                         
                         if pathbuf.is_dir() {
+                            if element_match {
+                                let mut matches_counters = matches_counters.lock().unwrap();
+                                matches_counters[0] += 1;
+                            }
                             if let Ok(read_dir) = fs::read_dir(pathbuf) {
                                 for result in read_dir {
                                     // Sending each sub-element in the pathbuf (which is a directory)
@@ -118,6 +132,9 @@ impl Hunter {
                                 }
                             }
                             
+                        } else if pathbuf.is_file() && element_match {
+                            let mut matches_counters = matches_counters.lock().unwrap();
+                            matches_counters[1] += 1;
                         }
                     } else {
                         // There are no elements left in the queue.
@@ -136,6 +153,14 @@ impl Hunter {
             queue.push(dir);
         }
 
+        let matches_counters = {
+            matches_counters.lock().unwrap()
+        };
+        let (dirs, files) = (matches_counters[0], matches_counters[1]);
+        println!("\n===========================");
+        println!("{} matches found.", dirs+files);
+        println!("  - Directories: {}\n  - Files: {}", dirs, files);
+        println!("===========================");
     }
 }
 
