@@ -4,8 +4,8 @@ use search::Hunter;
 fn main() {
     let config_result = Hunter::build();
     let hunter: Hunter;
-    if let Ok(c) = config_result {
-        hunter = c;
+    if let Ok(config) = config_result {
+        hunter = config;
         if hunter.print_help {
             println!("{}", Hunter::HELP_MENU);
         } else {
