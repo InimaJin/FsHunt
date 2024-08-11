@@ -1,11 +1,19 @@
-A command-line utility that recursively traverses directories and searches for files by name.
+# FS_HUNT - Traverse the filesystem
 
-Build the binary using cargo:
-cargo build
+## A command-line utility that recursively searches directories for files by name.
 
-or build and subsequently run it:
-cargo run
+### Build instructions
 
-I suggest moving the executable to a directory in your PATH environment variable in order for you to use it more conveniently.
+Build the binary by issuing
 
-For information on usage and available options, run the application with the --help flag.
+    $ cargo build
+
+or build and subsequently run it
+
+    $ cargo run
+
+*Tip: Move the executable to a directory in your PATH environment variable in order to use it more conveniently.*
+
+***
+
+For information on usage and available options, run the application with the `--help` flag.
