@@ -10,7 +10,7 @@ Build the binary by issuing
 
 or build and subsequently run it
 
-    $ cargo run
+    $ cargo run <KEYWORD> <DIRECTORY> [OPTIONS]
 
 *Tip: Move the executable to a directory in your PATH environment variable in order to use it more conveniently.*
 
