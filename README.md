@@ -1,4 +1,4 @@
-# FS_HUNT - Traverse the filesystem
+# FsHunt - Traverse the filesystem
 
 ## A command-line utility that recursively searches directories for files by name.
 
